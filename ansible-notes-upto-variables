@@ -1,0 +1,466 @@
+ANSIBLE --
+
+* Configuration management
+* orchestration utility
+* Agentless
+* built on python
+
+- Ansible create plays in playbooks
+- work is pushed to remote hosts when Ansible executes
+- Modules are programs that perform actual work of tasks of a play.
+
+* No agent, or deamon.
+* ssh access to all other systems.
+
+Questions -
+
+1) command to fetch hard drives utilization
+= ansible -m command -a 'dh -h' <servers>
+
+2) command to fectch system uptime
+= ansible -m command -a 'uptime' <servers>
+
+3) command to get full configurations of the client machine
+= ansible -m setup <machine ip>
+
+INSTALL Ansible-
+
+* yum install vim -y
+
+*in all 3 machines go to /etc/ssh/sshd_config file using vim editor.
+vim /etc/ssh/sshd_config
+
+*PasswordAuthentication yes --> this line should be un commented
+
+#PermitEmptyPasswords no
+#PasswordAuthentication no --> this line should be commented
+
+* systemctl restart sshd
+* useradd ansible
+* passwd ansible
+* visudo
+* ansible ALL=(ALL)       NOPASSWD:       ALL
+
+- in Master
+* sudo su - ansible
+* ssh-keygen
+
+- Copy SSH keys from ansible server to clients
+node-1 = ssh-copy-id ip-172-31-41-164.ap-south-1.compute.internal
+node-2 = ssh-copy-id ip-172-31-36-199.ap-south-1.compute.internal
+
+i can login to clients node using ssh
+[ansible@ip-172-31-32-173 ~]$ ssh 'ip-172-31-41-164.ap-south-1.compute.internal'
+
+- Install Ansible on master
+* sudo yum install ansible -y
+
+- create environment directories
+a) dev, b) stage, c) prod
+mkdir dev stage prod
+
+* pwd - output should be = /home/ansible
+
+* Create ansible.cfg file - touch ansible.cfg
+* ansible --version should show the location as 
+- config file = /home/ansible/dev/ansible.cfg
+
+* vi ansible.cfg
+[defaults]
+inventory=hosts
+remote_user=ansible
+timeout=3000 
+
+* vi hosts 
+(create hosts file and add the hostnames in it)
+
+[prod]
+ip-172-31-16-222.ec2.internal
+[backup]
+ip-172-31-25-84.ec2.internal 
+
+* check if ansible environment is correctly configured or not.
+
+* Test your client servers connectivity from ansible
+ansible all -m ping  --> you must receive ping / pong in green
+
+- Configure VIM Editor purpose .To Avoid intend issues
+* go to /home/ansible/ home directory
+* vim .vimrc
+
+set ai
+set tabstop=2
+set expandtab
+
+* source ~/.vimrc
+
+--------------------------------
+
+Ansible - playbook
+
+- to get the ansible doc details - 
+ansible-doc -l 
+ansible-doc -l | wc -l
+
+* You will receive the error when you execute the playbook.you must add the privilage_escalation section in ansible.cfg file 
+
+- vim ansible.cfg
+
+[defaults]
+inventory=hosts
+remote_user=ansible
+timeout=3000
+
+[privilege_escalation]
+become=True
+become_method=sudo
+become_user=root
+become_ask_pass=False
+
+
+* Sample playbook
+
+---
+- name: install httpd
+  hosts: all
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+
+   - name: Install a list of packages (suitable replacement for 2.11 loop deprecation warning)
+     yum:
+      name:
+        - nginx
+        - postgresql
+        - postgresql-server
+      state: present
+
+
+* To run the playbook - ansible-playbook httpd.yaml
+
+* if we want to avoid indentation error while copying and pasting in vim
+- use 
+:set paste and then click i (insert) before pasting.
+
+------------
+
+* creating httpd service, enabling and hosting a pdf in location: /var/www/html
+
+---
+- name: httpd install
+  hosts: node1,node2
+  tasks:
+   - name: httpd install
+     yum:
+      name: httpd
+      state: latest
+   - name: httpd service start
+     service:
+      name: httpd
+      state: started
+   - name: enable the service
+     service:
+      name: httpd
+      enabled: yes
+   - name: download the httpd.conf
+     get_url:
+      url: https://access.redhat.com/sites/default/files/attachments/rh_yum_cheatsheet_1214_jcs_print-1.pdf
+      dest: /var/www/html/ansible.pdf
+      mode: 0644
+
+
+* create a group and users 
+
+---
+
+- name: i want to create groups and users
+  hosts: all
+  tasks:
+   - name: creating user
+     group:
+      name: myansiblegroup
+      state: present
+   - name: create users
+     user:
+      name: imran
+      group: myansiblegroup
+
+
+------------------------------------------------------------------
+
+Ansible tasks and tags with handlers -
+
+* ansible-playbook handler.yaml --list-tasks
+
+playbook: handler.yaml
+
+  play #1 (all): httpd install  TAGS: []
+    tasks:
+      httpd install     TAGS: [httpd]
+      httpd service start       TAGS: [httpd]
+      enable the service        TAGS: [httpd]
+      httpd nginx       TAGS: [nginx]
+      enable the service nginx  TAGS: [nginx]
+      download the httpd.conf   TAGS: []
+
+* ansible-playbook handler.yaml --list-tags
+
+playbook: handler.yaml
+
+  play #1 (all): httpd install  TAGS: []
+      TASK TAGS: [httpd, nginx]
+
+* ansible-playbook handler.yaml -C
+
+it is a dry run.
+
+yaml:
+
+---
+- name: httpd install
+  hosts: all
+  tasks:
+   - name: httpd install
+     yum:
+      name: httpd
+      state: latest
+     tags:
+     - httpd
+   - name: httpd service start
+     service:
+      name: httpd
+      state: started
+     tags:
+     - httpd
+   - name: enable the service
+     service:
+      name: httpd
+      enabled: yes
+     tags:
+     - httpd
+   - name: httpd nginx
+     yum:
+      name: nginx
+      state: latest
+     tags:
+     - nginx
+   - name: enable the service nginx
+     service:
+      name: nginx
+      state: restarted
+     tags:
+     - nginx
+   - name: download the httpd.conf
+     get_url:
+      url: https://access.redhat.com/sites/default/files/attachments/rh_yum_cheatsheet_1214_jcs_print-1.pdf
+      dest: /var/www/html/ansible.pdf
+      mode: 0644
+     notify:
+      - restart httpd
+  handlers:
+   - name: restart httpd
+     service:
+      name: httpd
+      state: restarted
+
+--------------------------------------------------------------
+
+* Remove all the installations from command
+
+ansible all -m command -a "yum remove httpd -y"
+
+-----------------------------------------------------------------
+
+Inventory Grouping
+
+node1 --> Dev Group
+
+node2 --> Prod Group
+
+Install httpd in production group of servers only and restart service also in production servers only
+
+* vim httpd.yaml
+- instead of giving all in hosts, we will give just prod
+
+---
+- name: install httpd
+  hosts: prod
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+   - name: restart web service
+     service:
+      name: httpd
+      state: restarted
+
+
+* Install httpd in production, dev group of servers and restart service also in both dev & production servers.
+
+---
+- name: install httpd
+  hosts: prod,dev
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+   - name: restart web service
+     service:
+      name: httpd
+      state: restarted
+
+* Install httpd in production group and node2 machine only
+
+---
+- name: install httpd
+  hosts: prod,node2
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+   - name: restart web service
+     service:
+      name: httpd
+      state: restarted
+
+* Install all the plays into all the servers which are listed out in the inventory file.But only one play (or) task must be executed in prod group only
+
+- we will use "when ['<group>']"
+
+---
+- name: install httpd
+  hosts: all
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+     when: inventory_hostname in groups ['prod']
+   - name: restart web service
+     service:
+      name: httpd
+      state: restarted
+
+
+* Install all the plays into all the servers which are listed out in the inventory file.But only one play (or) task must be executed in prod group and dev group only
+
+---
+- name: install httpd
+  hosts: all
+  tasks:
+   - name: install httpd
+     yum:
+      name: httpd
+      state: latest
+     when: inventory_hostname in groups ['prod']
+   - name: restart web service
+     service:
+      name: httpd
+      state: restarted 
+     when: inventory_hostname in groups ['dev']
+
+
+-----------------------------------------------------------------------------------
+
+Variables
+
+In general variables are used to store any values later which are used. 
+In ansible variable working is same we cant also store service name that we want to install or start. 
+
+Variables are very useful instead of doing changes in every task simply change the variable value. 
+
+For eg : if you want to install httpd then simply assign it to the variable and use that variable in the playbook rather than giving same value again and again to the task.
+
+There are two types of variables :
+1.	Local : These are only accessible within the file 
+2.	Global : These are accessible to the multiple files.
+
+
+* Declared local variable
+Example -1
+
+---
+- name: installing packages
+  hosts: all
+  vars:
+   - websoft: httpd
+  tasks:
+   - name: install {{ websoft }}
+     yum:
+      name: "{{ websoft }}"
+      state: latest
+   - name: start the {{ websoft }} service
+     service:
+      name: "{{ websoft }}"
+      state: restarted
+
+Example-2
+
+---
+- name: installing packages
+  hosts: all
+  vars:
+   - websoft: httpd
+  tasks:
+   - name: install {{ websoft }}
+     yum:
+      name: "{{ websoft }}"
+      state: latest
+   - name: start the {{ websoft }} service
+     service:
+      name: "{{ websoft }}"
+      state: restarted
+
+
+2--) Global variables
+
+In order to use global variable you have to declare it in your inventory file i.e. hosts file where you have added all your servers with this add global variable also.
+
+Eg: hosts  means your inventory file (if you forget means refer your ansible.cfg file)
+
+vim hosts
+
+node1
+node2
+
+[prod]
+node1
+
+[backup]
+node2
+
+[all:vars]
+websoft=httpd
+
+
+example-1:
+
+---
+- name: installing packages
+  hosts: all
+  tasks:
+   - name: install {{ websoft }}
+     yum:
+      name: "{{ websoft }}"
+      state: latest
+   - name: start the {{ websoft }} service
+     service:
+      name: "{{ websoft }}"
+      state: restarted
+
+* We can make it work for only one group like either "prod" or "backup" 
+update this in hosts file
+
+[backup:vars]
+websoft=httpd
+
+
+it will fail in prod, but gets executed in backup
+
+ip-172-31-36-199.ap-south-1.compute.internal : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+ip-172-31-41-164.ap-south-1.compute.internal : ok=1    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
