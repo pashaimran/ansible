@@ -1,0 +1,268 @@
+
+
+Ansible AD-HOC commands-
+
+           Host Group   Module            Argument to the module
+
+ansible    webserver    -m yum         -a "name=httpd state=latest"
+ansible    allservers   -m shell       -a " find /opt/oracle -type f -mtime +10 -name ".log'"
+ansible    appserver    -m user        -a "name=saravak group=admins append=yes shell=bin/bash"
+
+
+
+Command : 
+[ansible@ip-172-31-32-173 dev]$ ansible all -m ping
+
+output:-
+
+ip-172-31-41-164.ap-south-1.compute.internal | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+-------------------------------------------------------------------------------------------
+
+Command:
+[ansible@ip-172-31-32-173 dev]$ ansible all -m shell -a 'echo $TERM'
+
+output:-
+
+ip-172-31-41-164.ap-south-1.compute.internal | CHANGED | rc=0 >>
+xterm-256color
+
+---------------------------------------------------------------------------------------------
+
+command:  copying a file from server to all clients
+ansible all -m copy -a "src=/etc/hosts dest=/tmp/hosts/temp-hosts/"
+
+output:-
+ip-172-31-36-199.ap-south-1.compute.internal | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": true,
+    "checksum": "27c253e93d8b3af8e28fc5626e7869a1cbdfc7ab",
+    "dest": "/tmp/hosts/temp-hosts/hosts",
+    "gid": 0,
+    "group": "root",
+    "md5sum": "ab72d38661b6117245a34461c9566626",
+    "mode": "0644",
+    "owner": "root",
+    "secontext": "unconfined_u:object_r:user_home_t:s0",
+    "size": 126,
+    "src": "/home/ansible/.ansible/tmp/ansible-tmp-1736948242.14611-332864-110021918696635/source",
+    "state": "file",
+    "uid": 0
+}
+
+
+-------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+
+File Transfer
+
+The file module allows changing ownership and permissions on files. These same options can be passed directly to the copy module as well:
+
+command: chnaging file permission of a destination client machine which is saved as prod in hosts file
+ansible prod -m file -a "dest=/var/tmp/a.txt mode=600"
+
+output:-
+ip-172-31-41-164.ap-south-1.compute.internal | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": true,
+    "gid": 0,
+    "group": "root",
+    "mode": "0600",
+    "owner": "root",
+    "path": "/var/tmp/a.txt",
+    "secontext": "unconfined_u:object_r:user_tmp_t:s0",
+    "size": 0,
+    "state": "file",
+    "uid": 0
+}
+
+command: create a user
+ansible all -m user -a "name=mdehaan password=imran.pasha"
+
+ip-172-31-41-164.ap-south-1.compute.internal | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": true,
+    "comment": "",
+    "create_home": true,
+    "group": 1003,
+    "home": "/home/mdehaan",
+    "name": "mdehaan",
+    "password": "NOT_LOGGING_PASSWORD",
+    "shell": "/bin/bash",
+    "state": "present",
+    "system": false,
+    "uid": 1003
+}
+
+command: create a group 
+[ansible@ip-172-31-32-173 dev]$ ansible all -m group -a "name=mdehaan"
+
+ip-172-31-41-164.ap-south-1.compute.internal | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": false,
+    "gid": 1003,
+    "name": "mdehaan",
+    "state": "present",
+    "system": false
+}
+
+
+command: add mdehaan user to mdehaan group
+ansible all -m user -a "name=mdehaan groups=mdehaan append=yes"
+
+ip-172-31-41-164.ap-south-1.compute.internal | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "append": true,
+    "changed": true,
+    "comment": "",
+    "group": 1003,
+    "groups": "mdehaan",
+    "home": "/home/mdehaan",
+    "move_home": false,
+    "name": "mdehaan",
+    "shell": "/bin/bash",
+    "state": "present",
+    "uid": 1003
+}
+
+------------------------------------------------------------------------------------------------------------------------
+
+The file module can also create directories, similar to mkdir -p:
+command: 
+ansible webservers -m file -a "dest=/var/tmp/testing mode=755 owner=mdehaan group=mdehaan state=directory"
+
+ip-172-31-36-199.ap-south-1.compute.internal | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": true,
+    "gid": 1003,
+    "group": "mdehaan",
+    "mode": "0755",
+    "owner": "mdehaan",
+    "path": "/var/tmp/testing",
+    "secontext": "unconfined_u:object_r:user_tmp_t:s0",
+    "size": 6,
+    "state": "directory",
+    "uid": 1003
+}
+
+* delete the directory
+ansible webservers -m file -a "dest=/var/tmp/testing state=absent"
+
+----------------------------------------------------------------------------------------------------------------
+
+Examples of file modules:
+
+EXAMPLES:
+
+- name: Change file ownership, group and permissions
+  ansible.builtin.file:
+    path: /etc/foo.conf
+    owner: foo
+    group: foo
+    mode: '0644'
+
+- name: Give insecure permissions to an existing file
+  ansible.builtin.file:
+    path: /work
+    owner: root
+    group: root
+    mode: '1777'
+
+- name: Create a symbolic link
+  ansible.builtin.file:
+    src: /file/to/link/to
+    dest: /path/to/symlink
+    owner: foo
+    group: foo
+    state: link
+
+- name: Create two hard links
+  ansible.builtin.file:
+    src: '/tmp/{{ item.src }}'
+    dest: '{{ item.dest }}'
+    state: hard
+  loop:
+    - { src: x, dest: y }
+    - { src: z, dest: k }
+
+- name: Touch a file, using symbolic modes to set the permissions (equivalent to 0644)
+  ansible.builtin.file:
+    path: /etc/foo.conf
+    state: touch
+    mode: u=rw,g=r,o=r
+
+- name: Touch the same file, but add/remove some permissions
+  ansible.builtin.file:
+    path: /etc/foo.conf
+    state: touch
+    mode: u+rw,g-wx,o-rwx
+
+- name: Touch again the same file, but do not change times this makes the task idempotent
+  ansible.builtin.file:
+    path: /etc/foo.conf
+    state: touch
+    mode: u+rw,g-wx,o-rwx
+    modification_time: preserve
+    access_time: preserve
+
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: /etc/some_directory
+    state: directory
+    mode: '0755'
+
+- name: Update modification and access time of given file
+  ansible.builtin.file:
+    path: /etc/some_file
+    state: file
+    modification_time: now
+    access_time: now
+
+- name: Set access time based on seconds from epoch value
+  ansible.builtin.file:
+    path: /etc/another_file
+    state: file
+    access_time: '{{ "%Y%m%d%H%M.%S" | strftime(stat_var.stat.atime) }}'
+
+- name: Recursively change ownership of a directory
+  ansible.builtin.file:
+    path: /etc/foo
+    state: directory
+    recurse: yes
+    owner: foo
+    group: foo
+
+- name: Remove file (delete file)
+  ansible.builtin.file:
+    path: /etc/foo.txt
+    state: absent
+
+- name: Recursively remove directory
+  ansible.builtin.file:
+    path: /etc/foo
+    state: absent
+
+
+======================================================================================================
+
+
+
