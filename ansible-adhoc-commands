@@ -265,4 +265,133 @@ EXAMPLES:
 ======================================================================================================
 
 
+Ensure a package is installed, but don’t update it:
+command:
+ansible webservers -m yum -a "name=acme state=present"
 
+Ensure a package is installed to a specific version:
+command:
+ansible webservers -m yum -a "name=httpd-2.4.6-9* state=present"
+
+Ensure a package is at the latest version:
+command:
+ansible webservers -m yum -a "name=httpd state=latest"
+
+Ensure a package is not installed:
+command:
+ansible webservers -m yum -a "name=httpd state=absent"
+
+=======================================================================================================================
+
+Users and Groups
+
+The ‘user’ module allows easy creation and manipulation of existing user accounts, as well as removal of user accounts that may exist:
+
+ansible all -m user -a "name=foo password=KEnTeaStIFY"
+
+ansible all -m user -a "name=foo state=absent"
+
+====================================================================================================================
+
+Managing Services
+
+Ensure a service is started on all webservers:
+
+ansible webservers -m service -a "name=httpd state=started"
+
+Alternatively, restart a service on all webservers:
+
+ansible webservers -m service -a "name=httpd state=restarted"
+
+Ensure a service is stopped:
+
+ansible webservers -m service -a "name=httpd state=stopped"
+
+====================================================================================================================
+
+What if you do not have SSH key-based authentication, then enter the user name and password while invoking the command as shown below.
+
+ansible multi -m ping  --user=vagrant --ask-pass
+
+ If your playbook requires sudo privileges, include the --ask-become-pass
+
+ansible-playbook playbook.yml --user=vagrant --ask-pass --ask-become-pass
+
+Ensure the hosts file specified in your playbook points to the correct inventory
+
+ansible-playbook playbook.yml -i inventory_file --user=vagrant --ask-pass
+
+=======================================================================================================================
+
+Here are the commands you can use to get the uptime. All three commands would yield you the same results.
+
+ansible all -m command -a uptime 
+ansible all -m shell -a uptime 
+ansible all -a uptime
+
+=====================================================================================================================
+
+ansible ad hoc command to check memory usage
+[ansible@ip-172-31-32-173 dev]$ ansible all -a "free -m"
+
+ip-172-31-36-199.ap-south-1.compute.internal | CHANGED | rc=0 >>
+               total        used        free      shared  buff/cache   available
+Mem:            3904         193        3143           0         566        3491
+Swap:              0           0           0
+
+========================================================================================================================
+
+**************************************************************************************************************************
+
+ad hoc command to Create a unix user group
+
+ansible all -m group -a "name=weblogic state=present" 
+**************************************************************************************************************************
+
+ad hoc command to Create a unix user
+
+ansible all -m user -a "name=weblogic group=weblogic createhome=yes" -b
+
+============================================================================================================================
+
+ad hoc command to Change ownership of a file
+
+ansible all -m file -a "path=/opt/oracle group=weblogic owner=weblogic" -i ansible_hosts -b
+**************************************************************************************************************************
+
+ansible ad hoc command to  check free disk space of hosts
+
+ansible all -a "df -h"
+**************************************************************************************************************************
+
+ansible ad hoc command to Install a package using yum command
+
+ansible all -m yum -a "name=httpd state=installed"
+**************************************************************************************************************************
+
+ansible ad hoc command to Start or stop the service
+
+# To Start
+ansible multi -m service -a "name=httod state=started enabled=yes"
+# To Stop
+ansible multi -m service -a "name=httpd state=stop enabled=yes"
+
+=============================================================================================================================================
+
+install a package using asnible for cronjon in all 3 nodes
+
+ansible all -m shell -a "yum install cronie " -b
+-----------------------------------------------------------------------------------------------------------------------
+
+cronjob scheduling on those instances.
+
+#  Run the job every 15 minutes
+$ ansible all -m cron -a "name='daily-cron-all-servers' minute=*/15 job='/path/to/minute-script.sh'"
+# Run the job every four hours
+$ ansible all -m cron -a "name='daily-cron-all-servers' hour=4 job='/path/to/hour-script.sh'"
+# Enabling a Job to run at system reboot
+$ ansible all -m cron -a "name='daily-cron-all-servers' special_time=reboot job='/path/to/startup-script.sh'"
+# Scheduling a Daily job
+$ ansible all -m cron -a "name='daily-cron-all-servers' special_time=daily job='/path/to/daily-script.sh'"
+# Scheduling a Weekly job
+$ ansible all -m cron -a "name='daily-cron-all-servers' special_time=weekly job='/path/to/daily-script.sh'"
