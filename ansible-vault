@@ -1,1 +1,36 @@
+* create a secret and save it in file with name var-pass.yaml, encrypt this file using ansible vault, 
+refer this var-pass.yaml in some ansible task which prints outout of this secret.
+1)
+var-pass.yaml
+---
+my_secret: 1234
 
+2) encrypt the secret
+ansible-vault encrypt var-pass.yaml
+
+3) we can decrypt is using
+ansible-vault decrypt var-pass.yaml
+
+4) we can also view the secret 
+ansible-vault view var-pass.yaml
+
+
+5) create a task file where we will be passing the secret
+
+vi secret.yaml
+---
+- name: Example of using Ansible Vault
+  hosts: all
+  vars_files:
+    - var-pass.yaml
+  tasks:
+    - name: Print the secret value
+      debug:
+        msg: "The secret is {{ my_secret }}"
+
+execute: ansible-playbook secret.yaml --ask-vault-pass
+
+it will display the password
+
+
+================================================================================================================================================
