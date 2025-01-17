@@ -1,0 +1,146 @@
+Steps to create a EC2 instance using Ansible
+
+1) install python 
+2) If the virtual environment doesn't exist, create it using the following commands
+
+command : python3 -m venv /home/ansible/ansible-env
+
+3) Once the virtual environment is created or verified, activate it using:
+
+command: source /home/ansible/ansible-env/bin/activate
+
+4) After activating the virtual environment, install the required libraries (boto3 and botocore):
+
+command: pip install boto3 botocore
+
+5) Install Required Collections: Ensure you have the amazon.aws collection installed.
+
+command: ansible-galaxy collection install amazon.aws
+
+6) AWS CLI Setup: Ensure your AWS CLI is configured with access credentials.
+
+command: aws configure
+
+7) IAM Permissions: The IAM user or role must have permissions to create EC2 instances, security groups, and associated resources.
+
+8) Python Boto3 Library: Ensure boto3 and botocore are installed.
+
+command: pip install boto3 botocore
+
+9) update host machine file 
+
+command: vi hosts
+
+[localhost]
+localhost ansible_python_interpreter=/home/ansible/ansible-env/bin/python ansible_connection=local
+
+- add ansible_connection=local
+
+10) update ansible.cfg file
+
+[defaults]
+inventory=hosts
+remote_user=ansible
+timeout=3000
+host_key_checking = False
+retry_files_enabled = False
+interpreter_python = /usr/bin/python3
+
+11) check the command for localhost setup:
+
+command: ansible -m setup localhost | grep python
+
+should get output similar-
+
+(ansible-env) [ansible@ip-172-31-32-173 dev]$ ansible -m setup localhost | grep python
+[WARNING]: Found both group and host with same name: localhost
+            "SUDO_COMMAND": "/bin/sh -c echo BECOME-SUCCESS-vabunwvhxtyrjdaooydfjbkqinjoodiy ; /home/ansible/ansible-env/bin/python /home/ansible/.ansible/tmp/ansible-tmp-1737118959.1095607-68196-270501874869701/AnsiballZ_setup.py",
+            "_": "/home/ansible/ansible-env/bin/python"
+        "ansible_python": {
+            "executable": "/home/ansible/ansible-env/bin/python",
+            "type": "cpython",
+        "ansible_python_version": "3.9.20",
+        "ansible_selinux_python_present": true,
+
+12) check the hosts if it is able to communicate to our local ansible host machine , it will ask password
+
+command: ansible localhost -m setup -a "filter=ansible_python_interpreter" --ask-become-pass --become
+
+output:
+(ansible-env) [ansible@ip-172-31-32-173 dev]$ ansible localhost -m setup -a "filter=ansible_python_interpreter" --ask-become-pass --become
+BECOME password:
+[WARNING]: Found both group and host with same name: localhost
+localhost | SUCCESS => {
+    "ansible_facts": {},
+    "changed": false
+}
+
+13) if everything works fine then we are good to create ec2 using ansible-
+
+14) use this yaml to create ec2 instance
+
+---
+- name: Create an EC2 instance
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        name: my-ansible-instance
+        key_name: ansible3  # Replace with your key pair name
+        instance_type: t2.micro
+        region: ap-south-1
+        aws_access_key: 
+        aws_secret_key: 
+        state: present
+        image_id: ami-0fd05997b4dff7aac  # Replace with a valid AMI ID for your region
+        network:
+          assign_public_ip: true
+          subnet_id: subnet-0f6af018b0e0426b6  # Replace with your subnet ID
+          security_group: sg-0a6e7e5463bcb5144 # Replace with your security group name
+        count: 1
+        wait: yes
+      register: ec2_info
+
+    - name: Output instance details
+      debug:
+        msg: "{{ ec2_info }}"
+
+== it should return proper output and should be started creating the instance.
+
+15) Destroy the EC2 instance
+
+- To destroy the EC2 instance created earlier using Ansible, you can modify your playbook to set the state parameter to absent. Here's how you can do it:
+- also change the vale for "register" and "msg"
+
+---
+- name: Create an EC2 instance
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        name: my-ansible-instance
+        key_name: ansible3  # Replace with your key pair name
+        instance_type: t2.micro
+        region: ap-south-1
+        aws_access_key: 
+        aws_secret_key: 
+        state: absent
+        image_id: ami-0fd05997b4dff7aac  # Replace with a valid AMI ID for your region
+        network:
+          assign_public_ip: true
+          subnet_id: subnet-0f6af018b0e0426b6  # Replace with your subnet ID
+          security_group: sg-0a6e7e5463bcb5144 # Replace with your security group name
+        count: 1
+        wait: yes
+      register: ec2_termination
+
+    - name: Output instance details
+      debug:
+        msg: "{{ ec2_termination }}"
+
+command : ansible-playbook ec2-termination.yaml --ask-become-pass --become
+
