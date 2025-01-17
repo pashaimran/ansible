@@ -188,3 +188,14 @@ You can write templated text to a file using the content parameter. Although thi
     content: "Hello, {{ ansible_user }}!"
 
 *******************************************************************************************************************
+how you will copy files recursively onto a target host?
+
+---
+- name: copy files recursively onto a target host
+  hosts: all
+  tasks:
+   - name: Synchronize and delete files in dest on the remote host that are not found in src of localhost.
+     ansible.posix.synchronize:
+      src: /home/ansible/dev/ntf.conf
+      dest: /home/ec2-user/ntf.conf
+      recursive: true
